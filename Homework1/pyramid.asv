@@ -1,0 +1,52 @@
+%loading image
+clc;
+close all;
+levels = 5;
+sigma = 0.5;
+I = im2double(imread('taylor.jpg'));
+I = rgb2gray(I);
+
+G_pyramid = cell([1,levels]);
+L_pyramid = cell([1,levels]);
+%imshow(I);
+%Matlab buildin Gaussian pyramid function for testing
+%for i = 1:levels
+%    I = impyramid(I, 'reduce');
+%    figure, colormap jet, imagesc(log(abs(fftshift(fft2(I)))));
+%    figure, imshow(I);
+%end
+
+
+for n = 1:levels
+    prev_img = I; 
+    post_img = imresize(imgaussfilt(I,sigma),0.5);
+    up_scale = imresize(post_img, size(prev_img));
+    Laplace = prev_img - imgaussfilt(up_scale, sigma);
+    G_fft = log(abs(fftshift(fft2(I))));
+    L_fft = log(abs(fftshift(fft2(Laplace))));
+    %figure, colormap jet, imagesc(log(abs(fftshift(fft2(I)))));
+    %figure, colormap jet, imagesc(log(abs(fftshift(fft2(Laplace)))));
+    %figure, colormap gray, imagesc(Laplace); 
+    %figure, colormap gray, imagesc(I);
+    G_pyramid{n} = I;
+    L_pyramid{n} = Laplace;
+    I = post_img;
+end
+
+ha = tight_subplot(2,levels,[.01 .01],[.1 .1], [.01, .01]);
+%ha = tight_subplot(3,2,[.01 .03],[.1 .01],[.01 .01])
+for n = 1:levels; axes(ha(n));imagesc(G_pyramid{n}); end
+for n = 1:levels; axes(ha(n));
+set(ha(1:4),'XTickLabel',''); set(ha,'YTickLabel','')
+
+%%
+clc;
+close all;
+clear all;
+I = im2double(imread('kitty.jpg'));
+[mag, theta] = gradientMagnitude(I, 1);
+
+
+
+
+
