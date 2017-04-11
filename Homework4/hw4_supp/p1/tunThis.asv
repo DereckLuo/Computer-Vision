@@ -1,1 +1,0 @@
-im = im2double(imread('house2.jpg'));

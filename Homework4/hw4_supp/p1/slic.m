@@ -12,7 +12,7 @@ function [cIndMap, time, imgVis] = slic(img, K, compactness)
 %   - imgVis:  the input image overlaid with the segmentation
 clc; clear all; close all;
 img = im2double(imread('house2.jpg'));
-K = 100; compactness = 10;
+K = 200; compactness = 0.5;
 
 tic;
 % Put your SLIC implementation here
@@ -28,17 +28,12 @@ disp(size(img));
 idx = 1;
 for ii = 1:S:y
     for jj = 1:S:x
-        if idx > K
-            break;
-        end
-        % if ii <= y && jj <= x
-        % x_pos = int16(jj); y_pos = int16(ii);
-        % disp([idx, x_pos, y_pos]);
-        % temp = [jj, ii, img(ii,jj,1), img(ii,jj,2), img(ii,jj,3)];
+%         if idx > K
+%             break;
+%         end
         clusters = [clusters; [jj, ii, img(ii,jj,1), img(ii,jj,2), img(ii,jj,3)]];%clusters : x, y, r, g, b
         % clusters(idx, :) = [jj, ii, img(ii,jj,1), img(ii,jj,2), img(ii,jj,3)]; 
         idx = idx + 1;  
-        %end
     end 
 end 
 numpix = zeros(size(clusters,1),1);
@@ -56,7 +51,7 @@ for ii = 1:size(clusters,1)
     xcord = clusters(ii,1); ycord = clusters(ii,2);
     minGrad = Gmag(ycord, xcord);
     minx = xcord; miny = ycord;
-    disp([xcord, ycord]);
+%     disp([xcord, ycord]);
     for n = max(1,ycord-1) : min(ycord+1,y)
         for k = max(1,xcord-1) : min(xcord+1,x)
             curGrad = Gmag(n,k);
@@ -78,19 +73,26 @@ end
 % initialize pixel labels and pixel distances
 labels = zeros(y,x); distances = zeros(y,x);
 labels(:) = -1; distances(:) = inf;
-
 % repeat to compute distance and move cluster centers
-for l = 1:50
-    disp(norm(clusters));
+% for l = 1:50
+threshold = 0.5;
+cur_distance = inf; 
+prev_distance = 0;
+while(abs(cur_distance-prev_distance) >= threshold)
+    prev_distance = cur_distance;
+    disp(cur_distance);
     for ii = 1:size(clusters,1)
         xcord = clusters(ii,1); ycord = clusters(ii,2);
         for n = max(1,round(ycord-S)) : min(round(ycord+S),y)
             for k = max(1,round(xcord-S)): min(round(xcord+S),x)
                 r1 = img(n,k,1); g1 = img(n,k,2); b1 = img(n,k,3);
                 r2 = clusters(ii,3); g2 = clusters(ii,4); b2 = clusters(ii,5);
-                dc = sqrt((r1-r2)*(r1-r2)+(g1-g2)*(g1-g2)+(b1-b2)*(b1-b2));
-                ds = sqrt((xcord-k)*(xcord-k)+(ycord-n)*(ycord-n));
-                D = sqrt(dc*dc + (ds/S)*(ds/S)*compactness*compactness);
+                % dc = sqrt((r1-r2)*(r1-r2)+(g1-g2)*(g1-g2)+(b1-b2)*(b1-b2));
+                dc = (r1-r2)*(r1-r2)+(g1-g2)*(g1-g2)+(b1-b2)*(b1-b2);
+                % ds = sqrt((xcord-k)*(xcord-k)+(ycord-n)*(ycord-n));
+                ds = (xcord-k)*(xcord-k)+(ycord-n)*(ycord-n);
+                % D = sqrt(dc*dc + (ds/S)*(ds/S)*compactness*compactness);
+                D = sqrt(dc + (ds/(S*S))*compactness*compactness);
                 if D < distances(n,k)
                     distances(n,k) = D;
                     labels(n,k) = ii;
@@ -98,7 +100,7 @@ for l = 1:50
             end
         end
     end
-
+    cur_distance = norm(distances);
     % recompute cluster center
     clusters = zeros(size(clusters));
     numpix = zeros(size(clusters,1),1);
@@ -116,11 +118,6 @@ for l = 1:50
         end 
     end 
     for ii = 1:size(clusters,1)
-%         clusters(ii,1) = clusters(ii,1)/clusters(ii,6);
-%         clusters(ii,2) = clusters(ii,2)/clusters(ii,6);
-%         clusters(ii,3) = clusters(ii,3)/clusters(ii,6);
-%         clusters(ii,4) = clusters(ii,4)/clusters(ii,6);
-%         clusters(ii,5) = clusters(ii,5)/clusters(ii,6);
         clusters(ii,1) = clusters(ii,1)/numpix(ii);
         clusters(ii,2) = clusters(ii,2)/numpix(ii);
         clusters(ii,3) = clusters(ii,3)/numpix(ii);
@@ -129,19 +126,41 @@ for l = 1:50
     end
 end
 
+% display error 
+figure, imagesc(log(distances));
+
 % display superpixel
-figure, imagesc(img);
-hold on
-for ii = 1:y-1
-    for jj = 1:x-1
-        if labels(ii,jj) ~= labels(ii,jj+1) || labels(ii,jj) ~= labels(ii+1,jj)
-            plot(jj,ii,'k.');
+% figure, imagesc(img);
+% hold on
+% for ii = 1:y-1
+%     for jj = 1:x-1
+%         if labels(ii,jj) ~= labels(ii,jj+1) || labels(ii,jj) ~= labels(ii+1,jj)
+%             plot(jj,ii,'r.');
+%         end
+%     end
+% end
+imgVis = img;
+for ii = 1:y
+    for jj = 1:x
+        if(ii < y && jj < x)
+            if labels(ii,jj) ~= labels(ii,jj+1) || labels(ii,jj) ~= labels(ii+1,jj)
+                imgVis(ii,jj,:) = [225,225,225];
+            end
+        elseif(jj < x)
+            if labels(ii,jj) ~= labels(ii,jj+1)
+                imgVis(ii,jj,:) = [225,225,225];
+            end 
+        elseif (ii < y)
+            if labels(ii,jj) ~= labels(ii+1,jj)
+                imgVis(ii,jj,:) = [225,225,225];
+            end
+        else 
+            continue;
         end
     end
 end
 
-imgVis = 0;
-cIndMap = 0;
+cIndMap = labels;
 
 % 
 time = toc;
